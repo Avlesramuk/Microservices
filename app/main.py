@@ -6,7 +6,7 @@ from .database import SessionLocal, engine, Base
 from .models import URL
 from .schemas import URLRequest
 from .utils import encode_base62
-from app.cache import redis_client
+from .cache import redis_client
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,7 +32,7 @@ def shorten_url(req: URLRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return {
-        "short_url": f"http://3.87.235.157:8000/{short_code}"
+        "short_url": f"http://13.218.35.128:8000/{short_code}"
     }
 
 
