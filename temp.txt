@@ -1,0 +1,41 @@
+services:
+
+  postgres-db:
+    image: postgres:16
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: urlshortener
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis-cache:
+    image: redis:7
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+
+  shortener:
+    image: urlshortener
+    container_name: shortener
+    expose:
+      - "8000"
+    depends_on:
+      - postgres-db
+      - redis-cache
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - shortener
+
+volumes:
+  postgres_data:
