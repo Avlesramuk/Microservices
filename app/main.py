@@ -31,7 +31,7 @@ def shorten_url(req: URLRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return {
-        "short_url": f"http://18.208.141.105:8000/{short_code}"
+        "short_url": f"http://3.87.235.157:8000/{short_code}"
     }
 
 @app.get("/{short_code}")
