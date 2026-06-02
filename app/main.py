@@ -6,6 +6,7 @@ from .database import SessionLocal, engine, Base
 from .models import URL
 from .schemas import URLRequest
 from .utils import encode_base62
+from app.cache import redis_client
 
 Base.metadata.create_all(bind=engine)
 
@@ -34,13 +35,26 @@ def shorten_url(req: URLRequest, db: Session = Depends(get_db)):
         "short_url": f"http://3.87.235.157:8000/{short_code}"
     }
 
+
 @app.get("/{short_code}")
 def redirect(short_code: str, db: Session = Depends(get_db)):
+
+    cached_url = redis_client.get(short_code)
+
+    if cached_url:
+        return RedirectResponse(cached_url)
+
     url = db.query(URL).filter(
         URL.short_code == short_code
     ).first()
 
     if not url:
         raise HTTPException(status_code=404)
+
+    redis_client.set(
+        short_code,
+        url.long_url,
+        ex=3600
+    )
 
     return RedirectResponse(url.long_url)

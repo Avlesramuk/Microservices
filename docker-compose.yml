@@ -1,0 +1,26 @@
+services:
+
+  postgres-db:
+    image: postgres:16
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: urlshortener
+    ports:
+      - "5432:5432"
+
+  redis-cache:
+    image: redis:7
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+
+  shortener:
+    build: .
+    container_name: shortener
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres-db
+      - redis-cache
