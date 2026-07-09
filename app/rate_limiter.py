@@ -1,35 +1,91 @@
-from fastapi import Request, HTTPException
-from .cache import redis_client
+import time
+import redis
 
-RATE_LIMIT = 10
-WINDOW = 60
 
-def rate_limit(request: Request):
+# Token bucket configuration
+MAX_TOKENS = 10
+REFILL_RATE = 10 / 60   # tokens per second
 
-    client_ip = request.client.host
-    key = f"rate_limit:{client_ip}"
+
+redis_client = redis.Redis(
+    host="redis-cache",
+    port=6379,
+    decode_responses=True
+)
+
+
+def is_allowed(client_id: str):
+
+    key = f"rate_limit:{client_id}"
+
+    now = time.time()
 
     try:
-        current = redis_client.get(key)
 
-        if current is None:
-            redis_client.set(
+        bucket = redis_client.hgetall(key)
+
+        # First request
+        if not bucket:
+
+            redis_client.hset(
                 key,
-                RATE_LIMIT - 1,
-                ex=WINDOW
-            )
-            return
-
-        current = int(current)
-
-        if current <= 0:
-            raise HTTPException(
-                status_code=429,
-                detail="Too many requests"
+                mapping={
+                    "tokens": MAX_TOKENS - 1,
+                    "timestamp": now
+                }
             )
 
-        redis_client.decr(key)
+            redis_client.expire(
+                key,
+                120
+            )
 
-    except Exception:
-        # Redis failure → fail open
-        return
+            return True
+
+
+        tokens = float(bucket["tokens"])
+        last_time = float(bucket["timestamp"])
+
+
+        # Calculate refill
+        elapsed = now - last_time
+
+        refill = elapsed * REFILL_RATE
+
+        tokens = min(
+            MAX_TOKENS,
+            tokens + refill
+        )
+
+
+        # No tokens available
+        if tokens < 1:
+
+            return False
+
+
+        # Consume token
+
+        tokens -= 1
+
+
+        redis_client.hset(
+            key,
+            mapping={
+                "tokens": tokens,
+                "timestamp": now
+            }
+        )
+
+        return True
+
+
+    except Exception as e:
+
+        print(
+            "Redis unavailable:",
+            e
+        )
+
+        # Fail open strategy
+        return True
